@@ -12,6 +12,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
     if (!body?.ip || !body?.port) return res.status(400).send("ip/port required");
+    // Reject invalid/unspecified/loopback IPs
+    const ip = (body.ip as string).trim();
+    if (
+      !ip ||
+      ip === "0.0.0.0" ||
+      ip.startsWith("127.") ||
+      ip === "::1" ||
+      ip.toLowerCase().includes("unspecified")
+    ) {
+      return res.status(400).send("invalid ip");
+    }
 
     const key = `srv:${body.ip}:${body.port}`;
     body.lastHeartbeat = Math.floor(Date.now() / 1000);
