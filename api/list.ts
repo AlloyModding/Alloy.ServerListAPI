@@ -6,8 +6,13 @@ const redis = Redis.fromEnv();
 
 export default async function handler(_req: VercelRequest, res: VercelResponse) {
   try {
+    res.setHeader("Cache-Control", "no-store");
+    const debug = _req.query?.debug === "1";
+
     const keys = await redis.smembers<string>("srv:index").catch(() => []);
-    if (!keys || keys.length === 0) return res.status(200).json([]);
+    if (!keys || keys.length === 0) {
+      return res.status(200).json(debug ? { servers: [], keys } : []);
+    }
 
     // Fetch banned/official sets
     const [bannedList, officialList] = await Promise.all([
@@ -34,6 +39,10 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
       } catch {
         continue;
       }
+    }
+
+    if (debug) {
+      return res.status(200).json({ servers, keys });
     }
 
     return res.status(200).json(servers);
