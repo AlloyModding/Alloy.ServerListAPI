@@ -16,7 +16,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const key = `srv:${body.ip}:${body.port}`;
     body.lastHeartbeat = Math.floor(Date.now() / 1000);
 
-    await redis.set(key, JSON.stringify(body), { ex: TTL_SECONDS });
+    // store payload with TTL and keep an index set of active keys
+    await Promise.all([
+      redis.set(key, JSON.stringify(body), { ex: TTL_SECONDS }),
+      redis.sadd("srv:index", key),
+    ]);
     return res.status(200).send("ok");
   } catch (err: any) {
     return res.status(500).send(err?.message ?? "error");

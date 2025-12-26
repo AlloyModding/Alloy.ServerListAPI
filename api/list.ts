@@ -6,7 +6,7 @@ const redis = Redis.fromEnv();
 
 export default async function handler(_req: VercelRequest, res: VercelResponse) {
   try {
-    const keys = await redis.keys("srv:*");
+    const keys = await redis.smembers<string>("srv:index").catch(() => []);
     if (!keys || keys.length === 0) return res.status(200).json([]);
 
     // Fetch banned/official sets
@@ -18,22 +18,23 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
     const officialSet = new Set(officialList ?? []);
 
     const values = await redis.mget<string[]>(...keys);
-    const servers = values
-      .filter(Boolean)
-      .map((s) => {
-        try {
-          return JSON.parse(s as string);
-        } catch {
-          return null;
-        }
-      })
-      .filter(Boolean)
-      .map((s: any) => {
+    const servers = [];
+    for (let i = 0; i < keys.length; i++) {
+      const raw = values[i];
+      if (!raw) {
+        // key expired; prune from index
+        await redis.srem("srv:index", keys[i]);
+        continue;
+      }
+      try {
+        const s = JSON.parse(raw as string);
         const key = `${s.ip}:${s.port}`;
-        if (bannedSet.has(key)) return null;
-        return { ...s, isOfficial: officialSet.has(key) };
-      })
-      .filter(Boolean);
+        if (bannedSet.has(key)) continue;
+        servers.push({ ...s, isOfficial: officialSet.has(key) });
+      } catch {
+        continue;
+      }
+    }
 
     return res.status(200).json(servers);
   } catch (err: any) {
