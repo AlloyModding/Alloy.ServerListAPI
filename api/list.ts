@@ -22,27 +22,27 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
     const bannedSet = new Set(bannedList ?? []);
     const officialSet = new Set(officialList ?? []);
 
-    const values = await redis.mget<string[]>(...keys);
-    const servers = [];
-    for (let i = 0; i < keys.length; i++) {
-      const raw = values[i];
+    const servers: any[] = [];
+    const raws: Record<string, any> = {};
+    for (const key of keys) {
+      const raw = await redis.get<string>(key).catch(() => null);
       if (!raw) {
-        // key expired; prune from index
-        await redis.srem("srv:index", keys[i]);
+        await redis.srem("srv:index", key);
         continue;
       }
+      raws[key] = raw;
       try {
         const s = JSON.parse(raw as string);
-        const key = `${s.ip}:${s.port}`;
-        if (bannedSet.has(key)) continue;
-        servers.push({ ...s, isOfficial: officialSet.has(key) });
+        const pk = `${s.ip}:${s.port}`;
+        if (bannedSet.has(pk)) continue;
+        servers.push({ ...s, isOfficial: officialSet.has(pk) });
       } catch {
         continue;
       }
     }
 
     if (debug) {
-      return res.status(200).json({ servers, keys });
+      return res.status(200).json({ servers, keys, raws });
     }
 
     return res.status(200).json(servers);
