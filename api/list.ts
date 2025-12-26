@@ -25,14 +25,14 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
     const servers: any[] = [];
     const raws: Record<string, any> = {};
     for (const key of keys) {
-      const raw = await redis.get<string>(key).catch(() => null);
+      const raw = await redis.get(key).catch(() => null);
       if (!raw) {
         await redis.srem("srv:index", key);
         continue;
       }
       raws[key] = raw;
       try {
-        const s = JSON.parse(raw as string);
+        const s = typeof raw === "string" ? JSON.parse(raw) : raw;
         const pk = `${s.ip}:${s.port}`;
         if (bannedSet.has(pk)) continue;
         servers.push({ ...s, isOfficial: officialSet.has(pk) });

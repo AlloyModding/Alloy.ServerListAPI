@@ -29,7 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // store payload with TTL and keep an index set of active keys
     await Promise.all([
-      redis.set(key, JSON.stringify(body), { ex: TTL_SECONDS }),
+      redis.set(key, body, { ex: TTL_SECONDS }),
       redis.sadd("srv:index", key),
     ]);
     return res.status(200).send("ok");
