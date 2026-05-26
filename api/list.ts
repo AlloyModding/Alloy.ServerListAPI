@@ -1,11 +1,11 @@
 // @ts-nocheck
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { Redis } from "@upstash/redis";
+import { getRedis, redisEnvStatus } from "../lib/redis";
 
-const redis = Redis.fromEnv();
 
 export default async function handler(_req: VercelRequest, res: VercelResponse) {
   try {
+    const redis = getRedis();
     res.setHeader("Cache-Control", "no-store");
     const debug = _req.query?.debug === "1";
 
@@ -47,6 +47,9 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
 
     return res.status(200).json(servers);
   } catch (err: any) {
+    if (_req.query?.debug === "1") {
+      return res.status(500).json({ error: err?.message ?? "error", redis: redisEnvStatus() });
+    }
     return res.status(500).send(err?.message ?? "error");
   }
 }

@@ -1,13 +1,13 @@
 // @ts-nocheck
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { Redis } from "@upstash/redis";
+import { getRedis } from "../lib/redis";
 
-const redis = Redis.fromEnv();
 const secret = process.env.API_SECRET;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === "GET") {
     try {
+      const redis = getRedis();
       const list = await redis.smembers<string>("banned").catch(() => []);
       return res.status(200).json(list ?? []);
     } catch (err: any) {
@@ -20,6 +20,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(401).send("unauthorized");
     }
     try {
+      const redis = getRedis();
       const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
       const action = body?.action ?? "add"; // add|remove
       const entry = body?.entry as string;
